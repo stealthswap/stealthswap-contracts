@@ -2,7 +2,7 @@
 
 On chain components of the [StealthSwap Protocol](https://stealthswap.org).
 
-Browse to [contracts-v1](contracts-v1/) for developement details.
+Browse to [contracts-v2](contracts-v2/) for developement details.
 
 **Current Version Status :**
 
