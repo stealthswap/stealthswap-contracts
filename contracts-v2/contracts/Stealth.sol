@@ -14,7 +14,6 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.so
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@opengsn/gsn/contracts/BaseRelayRecipient.sol";
-import "@opengsn/gsn/contracts/interfaces/IRelayHub.sol";
 
 /// @title StealthSwap Oracle Contract for Broadcasting Payment Notes
 contract Stealth is BaseRelayRecipient, OwnableUpgradeSafe {

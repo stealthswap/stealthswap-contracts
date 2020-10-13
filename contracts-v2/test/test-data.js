@@ -20,4 +20,4 @@ bytes[5] = `0x${rawData.ciphertext.slice(2 + 2 * length, 2 + 3 * length)}`;
 // MAC Tag is the last 32 bytes param
 bytes[6] = rawData.mac;
 
-module.exports.argumentBytes = bytes;
+module.exports.serializedArguments = bytes;
