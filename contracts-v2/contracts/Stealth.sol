@@ -14,7 +14,8 @@ import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/IERC20.so
 import "@openzeppelin/contracts-ethereum-package/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts-ethereum-package/contracts/math/SafeMath.sol";
 import "@opengsn/gsn/contracts/BaseRelayRecipient.sol";
-
+import "@opengsn/gsn/contracts/interfaces/IKnowForwarderAddress.sol";
+import "@opengsn/gsn/contracts/interfaces/IRelayHub.sol";
 /// @title StealthSwap Oracle Contract for Broadcasting Payment Notes
 contract Stealth is BaseRelayRecipient, OwnableUpgradeSafe {
   using SafeMath for uint256;
@@ -34,7 +35,8 @@ contract Stealth is BaseRelayRecipient, OwnableUpgradeSafe {
     uint256 _protocolFee,
     uint256 _etherProtocolFee,
     address _feeManager,
-    address payable _feeTaker
+    address payable _feeTaker,
+    address _gsnForwarder,
   ) public {
     __Ownable_init();
     protocolToken = _protocolToken;
@@ -43,6 +45,8 @@ contract Stealth is BaseRelayRecipient, OwnableUpgradeSafe {
     feeManager = _feeManager;
     feeTaker = _feeTaker;
     abyss = 1 wei;
+    trustedForwarder = _gsnForwarder;
+
   }
 
   mapping(address => bool) usedAddrs;
@@ -207,7 +211,7 @@ contract Stealth is BaseRelayRecipient, OwnableUpgradeSafe {
     delete processedPayments[_msgSender()];
     emit Withdrawal(_msgSender(), _receiver, tokenAddr, amount);
     /// send token to receiver
-    IERC20(tokenAddr).transferFrom(_msgSender(), _receiver, amount);
+    SafeERC20.safeTransfer(IERC20(tokenAddr), _acceptor, amount);
   }
 
   /// @notice collect paid fees for redistribituion
@@ -217,6 +221,13 @@ contract Stealth is BaseRelayRecipient, OwnableUpgradeSafe {
     uint256 totalFees = IERC20(protocolToken).balanceOf(address(this));
     IERC20(protocolToken).approve(feeTaker,totalFees);
     IERC20(protocolToken).transfer(feeTaker, totalFees);
+  }
+  /// GSN Integration
+  function getTrustedForwarder() external override view returns(address) {
+    return trustedForwarder;
+  }
+  function setForwarder(address _forwarder) public onlyOwner {
+    trustedForwarder = _forwarder;
   }
 
   /// Modifiers
