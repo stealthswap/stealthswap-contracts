@@ -20,7 +20,7 @@ contract StealthPaymaster is BasePaymaster {
     external
     override
     returns (bytes memory context, bool rejectOnRecipientRevert) {
-      (signature, approvalData, maxPossibleGas); // to silence compiler warnings
+      (signature, approvalData, maxPossibleGas);
 
       require(relayRequest.request.to == stealthAddr, "StealthPaymaster: Not Target");
       return (abi.encode(0x0), true);
@@ -35,6 +35,6 @@ contract StealthPaymaster is BasePaymaster {
   external
   override
   relayHubOnly {
-    (context, success, gasUseWithoutPost, relayData); // to silence compiler warnings
+    (context, success, gasUseWithoutPost, relayData);
   }
 }
