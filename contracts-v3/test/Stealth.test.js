@@ -1,14 +1,20 @@
 const { accounts, contract, web3 } = require('@openzeppelin/test-environment');
 const { BN, balance, ether , expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
 const { expect, assert } = require('chai');
-const { serializedArguments } = require('./test-data');
-
 // TestToken is used to test transfers of ERC20
 const TestToken = contract.fromArtifact('TestToken');
 // ProtocolToken is used to pay transfer fees (protocolFee)
 const ProtocolToken = contract.fromArtifact('ProtocolToken');
 // Stealth is the oracle contract
 const Stealth = contract.fromArtifact('Stealth');
+// Example of an unpacked payment note
+const paymentNote = { 
+  ephemeralPublicKey: '0x043a258b6e77773a2429dba2fc434544828c73e1251791abcb09a5a10f0998fe0f0a7857d76d5cba188a709013b9f352b3889b4a15bbd2fd41a35a323b04fba030',
+  ciphertext: '0x8e99b5e16ef3c173144927260fca90f2a34c9c8997b102820baf1d1c9ef682f1', 
+};
+// Packed Note as a two array of 32 bytes each
+const packedNote = [`0x${paymentNote.ephemeralPublicKey.slice(4, 4 + 64)}`,paymentNote.ciphertext];
+
 
 
 describe('Stealth', () => {
@@ -117,7 +123,7 @@ describe('Stealth', () => {
     const paymentAmount = protocolFee.sub(new BN('1'));
 
     await expectRevert(
-      this.stealth.sendEther(receiver1, ...serializedArguments, { from: payer1, value: paymentAmount }),
+      this.stealth.sendEther(receiver1, ...packedNote, { from: payer1, value: paymentAmount }),
       'StealthSwap: Must have value higher than the protocol fee',
     );
   });
@@ -127,7 +133,7 @@ describe('Stealth', () => {
     const tokenAllowance = await this.protocolToken.allowance(payer1, this.stealth.address);
     const protocolFee = await this.stealth.protocolFee();
 
-    const receipt = await this.stealth.sendEther(receiver1, ...serializedArguments, {
+    const receipt = await this.stealth.sendEther(receiver1, ...packedNote, {
       from: payer1,
       value: ethPayment,
     });
@@ -141,13 +147,8 @@ describe('Stealth', () => {
       receiver: receiver1,
       token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
       amount: ethPayment.toString(),
-      iv: serializedArguments[0],
-      xCoord: serializedArguments[1],
-      yCoord: serializedArguments[2],
-      ctBuf0: serializedArguments[3],
-      ctBuf1: serializedArguments[4],
-      ctBuf2: serializedArguments[5],
-      mac: serializedArguments[6],
+      publicKey: packedNote[0],
+      note: packedNote[1],
     });
 
     const feePostBalance = new BN(await this.protocolToken.balanceOf(this.stealth.address));
@@ -157,7 +158,7 @@ describe('Stealth', () => {
 
   it('must prevent someone to send to the ETH receiver twice', async () => {
     await expectRevert(
-      this.stealth.sendEther(receiver1, ...serializedArguments, {
+      this.stealth.sendEther(receiver1, ...packedNote, {
         from: payer1,
         value: ethPayment,
       }),
@@ -180,7 +181,7 @@ describe('Stealth', () => {
         receiver1,
         this.token.address,
         tokenAmount,
-        ...serializedArguments,
+        ...packedNote,
         { from: payer2, value: protocolFee },
       ),
       'StealthSwap: stealth address cannot be reused',
@@ -193,7 +194,7 @@ describe('Stealth', () => {
         receiver2,
         this.token.address,
         tokenAmount,
-        ...serializedArguments,
+        ...packedNote,
         { from: payer2 },
       ),
       'StealthSwap: Must have value greater than or equal to ether protocol fee',
@@ -209,7 +210,7 @@ describe('Stealth', () => {
         receiver2,
         this.token.address,
         tokenAmount,
-        ...serializedArguments,
+        ...packedNote,
         { from: payer2, value: lessFee },
       ),
       'StealthSwap: Must have value greater than or equal to ether protocol fee',
@@ -219,18 +220,18 @@ describe('Stealth', () => {
   it('permit someone to pay with a token', async () => {
     await this.token.approve(this.stealth.address, tokenAmount, { from: payer2 });
     const receiverInitBalance = new BN(await web3.eth.getBalance(receiver2));
-    const receiverEthExpectedBalance = receiverInitBalance.add(new BN(ethFee));
+    const receiverEthExpectedBalance = receiverInitBalance;
 
     const receipt = await this.stealth.sendERC20(
       receiver2,
       this.token.address,
       tokenAmount,
-      ...serializedArguments,
+      ...packedNote,
       { from: payer2, value: ethFee },
     );
 
     const receiverPostBalance = new BN(await web3.eth.getBalance(receiver2));
-    const receiverPostTokenBalance = await this.token.balanceOf(receiver2);
+    const receiverPostTokenBalance = await this.token.balanceOf(this.stealth.address);
 
     expect(receiverPostBalance.toString()).to.equal(receiverEthExpectedBalance.toString());
     expect(receiverPostTokenBalance.toString()).to.equal(tokenAmount.toString());
@@ -239,13 +240,8 @@ describe('Stealth', () => {
       receiver: receiver2,
       amount: tokenAmount,
       token: this.token.address,
-      iv: serializedArguments[0],
-      xCoord: serializedArguments[1],
-      yCoord: serializedArguments[2],
-      ctBuf0: serializedArguments[3],
-      ctBuf1: serializedArguments[4],
-      ctBuf2: serializedArguments[5],
-      mac: serializedArguments[6],
+      publicKey: packedNote[0],
+      note: packedNote[1],
     });
   });
 
@@ -257,7 +253,7 @@ describe('Stealth', () => {
         receiver2,
         this.token.address,
         tokenAmount,
-        ...serializedArguments,
+        ...packedNote,
         { from: payer2, value: ethFee },
       ),
       'StealthSwap: stealth address cannot be reused',
@@ -266,7 +262,7 @@ describe('Stealth', () => {
 
   it('must prevent someone to send tokens to a previous ETH receiver', async () => {
     await expectRevert(
-      this.stealth.sendEther(receiver2, ...serializedArguments, {
+      this.stealth.sendEther(receiver2, ...packedNote, {
         from: payer1,
         value: ethPayment,
       }),
@@ -328,14 +324,14 @@ describe('Stealth', () => {
 
   it('must prevent someone to pay eth without allowance for the protocol fee amount', async () => {
     await expectRevert(
-      this.stealth.sendEther(receiver4, ...serializedArguments, { from: payer4, value: ethPayment }),
+      this.stealth.sendEther(receiver4, ...packedNote, { from: payer4, value: ethPayment }),
       'StealthSwap: You must provide allowance to pay the protocol fee',
     );
   });
 
   it('must prevent someone to pay eth without sufficient allowance for the protocol fee amount', async () => {
     await expectRevert(
-      this.stealth.sendEther(receiver5, ...serializedArguments, { from: payer5, value: ethPayment }),
+      this.stealth.sendEther(receiver5, ...packedNote, { from: payer5, value: ethPayment }),
       'StealthSwap: You must provide allowance to pay the protocol fee',
     );
   });
@@ -345,7 +341,7 @@ describe('Stealth', () => {
     const tokenAllowance = await this.protocolToken.allowance(payer3, this.stealth.address);
     const protocolFee = await this.stealth.protocolFee();
 
-    const receipt = await this.stealth.sendEther(receiver3, ...serializedArguments, {
+    const receipt = await this.stealth.sendEther(receiver3, ...packedNote, {
       from: payer3,
       value: ethPayment,
     });
@@ -360,13 +356,8 @@ describe('Stealth', () => {
       receiver: receiver3,
       amount: ethPayment.toString(),
       token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      iv: serializedArguments[0],
-      xCoord: serializedArguments[1],
-      yCoord: serializedArguments[2],
-      ctBuf0: serializedArguments[3],
-      ctBuf1: serializedArguments[4],
-      ctBuf2: serializedArguments[5],
-      mac: serializedArguments[6],
+      publicKey: packedNote[0],
+      note: packedNote[1], 
     });
 
     const feePostBalance = new BN(await this.protocolToken.balanceOf(this.stealth.address));

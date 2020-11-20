@@ -169,7 +169,7 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
     emit PaymentNote(_receiver, _tokenAddr, _amount, _publicKey, _note);
     /// transfer tokens to contract control
     /// transferFrom(_msgSender(),address(this),_amount)
-    IERC20(_tokenAddr).transferFrom(_msgSender(), _receiver, _amount);
+    IERC20(_tokenAddr).transferFrom(_msgSender(), address(this), _amount);
     /// tag stealth address as used to prevent re-use
     /// hashReceiver = getSHA3Hash(_receiver)
     usedAddrs[_receiver] = true;
@@ -227,8 +227,8 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
   }
 
   /// Utility Functions
-  function getSHA3Hash(bytes input) returns (bytes32 hashedOutput)
+  function getSHA3Hash(bytes memory input) public returns (bytes32 hashedOutput)
   {
-      hashedOutput = sha3(input);
+      hashedOutput = keccak256(input);
   }
 }
