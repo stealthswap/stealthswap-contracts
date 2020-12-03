@@ -25,23 +25,22 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
   IERC20 private protocolToken;
 
   uint256 public protocolFee;
-  uint256 public etherProtocolFee;
   uint256 public abyss;
+
   address public feeManager;
   address payable public feeTaker;
+
   bool private initialized;
 
   constructor(
     IERC20 _protocolToken,
     uint256 _protocolFee,
-    uint256 _etherProtocolFee,
     address _feeManager,
     address payable _feeTaker,
     address _gsnForwarder
   ) public {
     protocolToken = _protocolToken;
     protocolFee = _protocolFee;
-    etherProtocolFee = _etherProtocolFee;
     feeManager = _feeManager;
     feeTaker = _feeTaker;
     abyss = 1 wei;
@@ -56,10 +55,6 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
   /// to Governing Contract.
   function setProtocolFee(uint256 _newFee) public onlyOwner {
     protocolFee = _newFee;
-  }
-
-  function setEtherProtocolFee(uint256 _newEtherFee) public onlyOwner {
-    etherProtocolFee = _newEtherFee;
   }
 
   function setFeeManager(address _newFeeManager) public onlyOwner {
@@ -79,13 +74,15 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
   /// @param receiver receiver's stealth address
   /// @param token address of transferred token
   /// @param amount amount transferred
-  /// @param publicKey used to encrypt the paymentnote
+  /// @param xCoord public key X coordinate used to encrypt the paymentnote
+  /// @param yCoord public key Y coordinate used to encrypt the paymentnote
   /// @param note encrypted scalar used to unlock funds on receiving end
   event PaymentNote(
     address indexed receiver,
     address indexed token,
     uint256 indexed amount,
-    bytes32 publicKey,
+    bytes32 xCoord,
+    bytes32 yCoord,
     bytes32 note
   );
 
@@ -114,11 +111,13 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
 
   /// @notice send ether to stealth address
   /// @param _receiver receiver's address
-  /// @param _publicKey public key used to encrypt the note
+  /// @param _xCoord public key x coordinate used to encrypt the note
+  /// @param _yCoord public key y coordinate used to encrypt the note
   /// @param _note encrypted scalar
   function sendEther(
     address payable _receiver,
-    bytes32 _publicKey,
+    bytes32 _xCoord,
+    bytes32 _yCoord,
     bytes32 _note
   ) public payable unusedAddr(_receiver) {
     /// enforce against dust attacks for ether transactions
@@ -130,7 +129,7 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
     /// enforce protocol fee payment
     IERC20(protocolToken).transferFrom(_msgSender(), address(this), protocolFee);
     /// emit new Payment Note
-    emit PaymentNote(_receiver, ETHER_TOKEN, amount, _publicKey, _note);
+    emit PaymentNote(_receiver, ETHER_TOKEN, amount, _xCoord, _yCoord, _note);
     // Tag address as used to prevent stealth address re-use
     usedAddrs[_receiver] = true;
     // Transfer Ether to receiving stealth address
@@ -141,18 +140,18 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
   /// @param _receiver receiver's address
   /// @param _tokenAddr token transferred address
   /// @param _amount amount transferred
-  /// @param _publicKey public key used to encrypt the note
+  /// @param _xCoord public key x coordinate used to encrypt the note
+  /// @param _yCoord public key y coordinate used to encrypt the note
   /// @param _note encrypted payment note
   function sendERC20(
     address payable _receiver,
     address _tokenAddr,
     uint256 _amount,
-    bytes32 _publicKey,
+    bytes32 _xCoord,
+    bytes32 _yCoord,
     bytes32 _note
   ) public payable unusedAddr(_receiver) {
-    /// otherwise we will be accepting 0 ether transaction
     /// this prevents the case where attackers mint and send worthless tokens
-    require(msg.value >= etherProtocolFee, "StealthSwap: Must have value greater than or equal to ether protocol fee");
     uint256 feeAllowance = IERC20(protocolToken).allowance(_msgSender(), address(this));
     /// insure allowance is sufficient to pay for protocol fee
     require(feeAllowance >= protocolFee, "StealthSwap: You must provide allowance to pay the protocol fee");
@@ -166,14 +165,13 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
     /// processedPayments[hashReceiver] = ....
     processedPayments[_receiver] = Payment({token: _tokenAddr, amount: _amount});
     /// emit payment note
-    emit PaymentNote(_receiver, _tokenAddr, _amount, _publicKey, _note);
+    emit PaymentNote(_receiver, _tokenAddr, _amount, _xCoord, _yCoord, _note);
     /// transfer tokens to contract control
     /// transferFrom(_msgSender(),address(this),_amount)
     IERC20(_tokenAddr).transferFrom(_msgSender(), address(this), _amount);
     /// tag stealth address as used to prevent re-use
     /// hashReceiver = getSHA3Hash(_receiver)
     usedAddrs[_receiver] = true;
-    /// transfer Ether protocol fee to receiver's address to afford withdrawals
   }
 
   /// Withdrawal Processing
@@ -227,7 +225,7 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
   }
 
   /// Utility Functions
-  function getSHA3Hash(bytes memory input) public returns (bytes32 hashedOutput)
+  function getSHA3Hash(bytes memory input) public pure returns (bytes32 hashedOutput)
   {
       hashedOutput = keccak256(input);
   }

@@ -1,0 +1,48 @@
+{
+  "contracts": {},
+  "solidityLibs": {},
+  "proxies": {
+    "contracts-v3/ProtocolToken": [
+      {
+        "address": "0x0e32A524FF34edB5ab9f23bc05837E4Be26a930F",
+        "kind": "NonProxy",
+        "bytecodeHash": "60b2dd2e374d3607ef570ad95125782755de1033395b52cd6ba886d9c2be6005"
+      }
+    ],
+    "contracts-v3/Stealth": [
+      {
+        "address": "0xF5a1C539aac1dC57282aC00BbeFA3Ea67764fB61",
+        "kind": "NonProxy",
+        "bytecodeHash": "316cec3933bbbe11b2b89053d159f23a288d42689ea02f5c2ade6ebd04d4552b"
+      },
+      {
+        "address": "0xf52820D8D44792860385954B34b336210F581Da1",
+        "kind": "NonProxy",
+        "bytecodeHash": "316cec3933bbbe11b2b89053d159f23a288d42689ea02f5c2ade6ebd04d4552b"
+      },
+      {
+        "address": "0xD4C72acBC909C4b5940C68088C2d48bB7B6F5fAb",
+        "kind": "NonProxy",
+        "bytecodeHash": "33b6a68c268b6bd027ec6299ea25578711d65166c7b85b60dca2109ca7bdffc1"
+      }
+    ],
+    "contracts-v3/StealthPaymaster": [
+      {
+        "address": "0x412614BcD6efef0827b0e7EE4e61FDD07A31E0Cd",
+        "kind": "NonProxy",
+        "bytecodeHash": "58e3600851e7247d26e88d9145f8ecf305b5f6b99fbfe9a17fa19ed9fed08bc4"
+      },
+      {
+        "address": "0xc2297f60156D506bf3279aF978A945E5161eEBf9",
+        "kind": "NonProxy",
+        "bytecodeHash": "58e3600851e7247d26e88d9145f8ecf305b5f6b99fbfe9a17fa19ed9fed08bc4"
+      },
+      {
+        "address": "0x73c5eb63CF8dfC2cF869243D774f8c16eEAF77dC",
+        "kind": "NonProxy",
+        "bytecodeHash": "58e3600851e7247d26e88d9145f8ecf305b5f6b99fbfe9a17fa19ed9fed08bc4"
+      }
+    ]
+  },
+  "manifestVersion": "2.2"
+}

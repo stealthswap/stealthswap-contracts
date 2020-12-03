@@ -8,12 +8,12 @@ const ProtocolToken = contract.fromArtifact('ProtocolToken');
 // Stealth is the oracle contract
 const Stealth = contract.fromArtifact('Stealth');
 // Example of an unpacked payment note
-const paymentNote = { 
+const paymentNote = {
   ephemeralPublicKey: '0x043a258b6e77773a2429dba2fc434544828c73e1251791abcb09a5a10f0998fe0f0a7857d76d5cba188a709013b9f352b3889b4a15bbd2fd41a35a323b04fba030',
-  ciphertext: '0x8e99b5e16ef3c173144927260fca90f2a34c9c8997b102820baf1d1c9ef682f1', 
+  ciphertext: '0x8e99b5e16ef3c173144927260fca90f2a34c9c8997b102820baf1d1c9ef682f1',
 };
 // Packed Note as a two array of 32 bytes each
-const packedNote = [`0x${paymentNote.ephemeralPublicKey.slice(4, 4 + 64)}`,paymentNote.ciphertext];
+const packedNote = [`0x${paymentNote.ephemeralPublicKey.slice(4, 4 + 64)}`, `0x${paymentNote.ephemeralPublicKey.slice(4+64, 4+2*64)}`,paymentNote.ciphertext];
 
 
 
@@ -39,8 +39,8 @@ describe('Stealth', () => {
     dummyForwarder,
   ] = accounts;
 
-  const deployedFee =ether('0.1'); // 0.01 OWL
-  const updatedFee = ether('0.01'); // 0.001 OWL
+  const deployedFee =ether('0.1'); // 0.1 OWL
+  const updatedFee = ether('0.01'); // 0.01 OWL
   const lowFee = ether('0.005') // 0.005 OWL
   const ethFee = ether('0.025'); // 0.025 Ether
 
@@ -52,7 +52,7 @@ describe('Stealth', () => {
   before(async () => {
     this.token = await TestToken.new('TestToken', 'TT');
     this.protocolToken = await ProtocolToken.new('ProtocolToken', 'OWL');
-    this.stealth = await Stealth.new(this.protocolToken.address, deployedFee, ethFee, feeManager, feeTaker,dummyForwarder,
+    this.stealth = await Stealth.new(this.protocolToken.address, deployedFee, feeManager, feeTaker,dummyForwarder,
     { from: owner });
 
     assert(deployedFee < feeAmount);
@@ -147,8 +147,9 @@ describe('Stealth', () => {
       receiver: receiver1,
       token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
       amount: ethPayment.toString(),
-      publicKey: packedNote[0],
-      note: packedNote[1],
+      xCoord: packedNote[0],
+      yCoord: packedNote[1],
+      note: packedNote[2],
     });
 
     const feePostBalance = new BN(await this.protocolToken.balanceOf(this.stealth.address));
@@ -188,18 +189,6 @@ describe('Stealth', () => {
     );
   });
 
-  it('must prevent someone to pay with a token without sending the ether protocol fee', async () => {
-    await expectRevert(
-      this.stealth.sendERC20(
-        receiver2,
-        this.token.address,
-        tokenAmount,
-        ...packedNote,
-        { from: payer2 },
-      ),
-      'StealthSwap: Must have value greater than or equal to ether protocol fee',
-    );
-  });
 
   it('must prevent someone to pay with a token without sending the full protocol fee', async () => {
     const protocolFee = await this.stealth.protocolFee();
@@ -213,7 +202,7 @@ describe('Stealth', () => {
         ...packedNote,
         { from: payer2, value: lessFee },
       ),
-      'StealthSwap: Must have value greater than or equal to ether protocol fee',
+      'StealthSwap: You must provide allowance to pay the protocol fee',
     );
   });
 
@@ -240,8 +229,9 @@ describe('Stealth', () => {
       receiver: receiver2,
       amount: tokenAmount,
       token: this.token.address,
-      publicKey: packedNote[0],
-      note: packedNote[1],
+      xCoord: packedNote[0],
+      yCoord: packedNote[1],
+      note: packedNote[2],
     });
   });
 
@@ -356,8 +346,9 @@ describe('Stealth', () => {
       receiver: receiver3,
       amount: ethPayment.toString(),
       token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
-      publicKey: packedNote[0],
-      note: packedNote[1], 
+      xCoord: packedNote[0],
+      yCoord: packedNote[1],
+      note: packedNote[2],
     });
 
     const feePostBalance = new BN(await this.protocolToken.balanceOf(this.stealth.address));
