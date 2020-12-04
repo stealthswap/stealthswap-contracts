@@ -5,6 +5,7 @@ const { expect } = require('chai');
 const Stealth = contract.fromArtifact('Stealth');
 const StealthPaymaster = contract.fromArtifact('StealthPaymaster');
 const TestToken = contract.fromArtifact('TestToken');
+const { keccak256 } = require("@ethersproject/keccak256");
 
 const { RelayProvider } = require('@opengsn/gsn/dist/src/relayclient/RelayProvider');
 const { GsnTestEnvironment } = require('@opengsn/gsn/dist/GsnTestEnvironment');
@@ -130,9 +131,10 @@ describe('Stealth GSN', () => {
     const contractBalance = await this.token.balanceOf(this.stealth.address);
 
     expect(contractBalance.toString()).to.equal(protocolFee.toString());
+    const receiverHash = keccak256(receiver)
 
     expectEvent(receipt, 'PaymentNote', {
-      receiver,
+      receiver:receiverHash,
       amount: protocolFee,
       token: this.token.address,
       xCoord: packedNote[0],

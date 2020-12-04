@@ -1,6 +1,7 @@
 const { accounts, contract, web3 } = require('@openzeppelin/test-environment');
 const { BN, balance, ether , expectEvent, expectRevert } = require('@openzeppelin/test-helpers');
 const { expect, assert } = require('chai');
+const { keccak256 } = require("@ethersproject/keccak256");
 // TestToken is used to test transfers of ERC20
 const TestToken = contract.fromArtifact('TestToken');
 // ProtocolToken is used to pay transfer fees (protocolFee)
@@ -143,8 +144,10 @@ describe('Stealth', () => {
 
     expect(amountReceived.toString()).to.equal(ethPayment.toString());
     expect(tokenAllowance.toString()).to.equal(tokenAmount.toString());
+    const receiverHash = keccak256(receiver1)
+
     expectEvent(receipt, 'PaymentNote', {
-      receiver: receiver1,
+      receiver: receiverHash,
       token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
       amount: ethPayment.toString(),
       xCoord: packedNote[0],
@@ -176,7 +179,6 @@ describe('Stealth', () => {
 
   it('must prevent someone to pay tokens to a previous ETH receiver', async () => {
     const protocolFee = await this.stealth.protocolFee();
-
     await expectRevert(
       this.stealth.sendERC20(
         receiver1,
@@ -210,7 +212,6 @@ describe('Stealth', () => {
     await this.token.approve(this.stealth.address, tokenAmount, { from: payer2 });
     const receiverInitBalance = new BN(await web3.eth.getBalance(receiver2));
     const receiverEthExpectedBalance = receiverInitBalance;
-
     const receipt = await this.stealth.sendERC20(
       receiver2,
       this.token.address,
@@ -224,9 +225,10 @@ describe('Stealth', () => {
 
     expect(receiverPostBalance.toString()).to.equal(receiverEthExpectedBalance.toString());
     expect(receiverPostTokenBalance.toString()).to.equal(tokenAmount.toString());
+    const receiverHash = keccak256(receiver2)
 
     expectEvent(receipt, 'PaymentNote', {
-      receiver: receiver2,
+      receiver: receiverHash,
       amount: tokenAmount,
       token: this.token.address,
       xCoord: packedNote[0],
@@ -341,9 +343,10 @@ describe('Stealth', () => {
 
     expect(amountReceived.toString()).to.equal(ethPayment.toString());
     expect(tokenAllowance.toString()).to.equal(tokenAmount.toString());
+    const receiverHash = keccak256(receiver3)
 
     expectEvent(receipt, 'PaymentNote', {
-      receiver: receiver3,
+      receiver: receiverHash,
       amount: ethPayment.toString(),
       token: '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE',
       xCoord: packedNote[0],

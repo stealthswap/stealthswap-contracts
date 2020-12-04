@@ -49,7 +49,7 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
   }
 
   mapping(address => bool) usedAddrs;
-  mapping(address => Payment) processedPayments;
+  mapping(bytes32 => Payment) processedPayments;
 
   /// Ownable Functions : Ownership is set at owner, then changed
   /// to Governing Contract.
@@ -78,7 +78,7 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
   /// @param yCoord public key Y coordinate used to encrypt the paymentnote
   /// @param note encrypted scalar used to unlock funds on receiving end
   event PaymentNote(
-    address indexed receiver,
+    bytes32 receiver,
     address indexed token,
     uint256 indexed amount,
     bytes32 xCoord,
@@ -129,7 +129,8 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
     /// enforce protocol fee payment
     IERC20(protocolToken).transferFrom(_msgSender(), address(this), protocolFee);
     /// emit new Payment Note
-    emit PaymentNote(_receiver, ETHER_TOKEN, amount, _xCoord, _yCoord, _note);
+    bytes32 _hashReceiver = keccak256(abi.encodePacked(_receiver));
+    emit PaymentNote(_hashReceiver, ETHER_TOKEN, amount, _xCoord, _yCoord, _note);
     // Tag address as used to prevent stealth address re-use
     usedAddrs[_receiver] = true;
     // Transfer Ether to receiving stealth address
@@ -161,28 +162,31 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
     /// enforce protocol fee payment
     IERC20(protocolToken).transferFrom(_msgSender(), address(this), protocolFee);
     /// store token payment in our balance sheet
-    /// hashReceiver = getSHA3Hash(_receiver)
+    /// hashReceiver = keccak256(_receiver)
     /// processedPayments[hashReceiver] = ....
-    processedPayments[_receiver] = Payment({token: _tokenAddr, amount: _amount});
+    bytes32 _hashReceiver = keccak256(abi.encodePacked(_receiver));
+    processedPayments[_hashReceiver] = Payment({token: _tokenAddr, amount: _amount});
     /// emit payment note
-    emit PaymentNote(_receiver, _tokenAddr, _amount, _xCoord, _yCoord, _note);
+    emit PaymentNote(_hashReceiver, _tokenAddr, _amount, _xCoord, _yCoord, _note);
     /// transfer tokens to contract control
     /// transferFrom(_msgSender(),address(this),_amount)
     IERC20(_tokenAddr).transferFrom(_msgSender(), address(this), _amount);
     /// tag stealth address as used to prevent re-use
-    /// hashReceiver = getSHA3Hash(_receiver)
+    /// hashReceiver = keccak256(_receiver)
     usedAddrs[_receiver] = true;
   }
 
   /// Withdrawal Processing
 
   function withdraw(address _receiver) public {
-    uint256 amount = processedPayments[_msgSender()].amount;
-    address tokenAddr = processedPayments[_msgSender()].token;
+    address withdrawee = _msgSender();
+    bytes32 withdraweeHash = keccak256(abi.encodePacked(withdrawee));
+    uint256 amount = processedPayments[withdraweeHash].amount;
+    address tokenAddr = processedPayments[withdraweeHash].token;
     // make sure _msgSender() has proper allocation
     require(amount > 0, "StealthSwap: Unavailable tokens for withdrawal");
     /// remove token payment from our balance sheet
-    delete processedPayments[_msgSender()];
+    delete processedPayments[withdraweeHash];
     emit Withdrawal(_msgSender(), _receiver, tokenAddr, amount);
     /// send token to receiver
     SafeERC20.safeTransfer(IERC20(tokenAddr), _receiver, amount);
@@ -222,11 +226,5 @@ contract Stealth is Ownable, BaseRelayRecipient, IKnowForwarderAddress {
   modifier unusedAddr(address _addr) {
     require(!usedAddrs[_addr], "StealthSwap: stealth address cannot be reused");
     _;
-  }
-
-  /// Utility Functions
-  function getSHA3Hash(bytes memory input) public pure returns (bytes32 hashedOutput)
-  {
-      hashedOutput = keccak256(input);
   }
 }
